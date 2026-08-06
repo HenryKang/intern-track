@@ -8,6 +8,7 @@ import {
   STAGE_LABELS,
   Stage,
 } from "@/lib/types";
+import { SeasonTabs, useSeasonFilter } from "@/components/SeasonFilter";
 
 function useDarkMode(): boolean {
   const [dark, setDark] = useState(false);
@@ -43,6 +44,7 @@ const STAGE_HEX: Record<"light" | "dark", Record<Stage, string>> = {
 
 const TERMINAL_HEX = {
   Rejected: { light: "#d03b3b", dark: "#d03b3b" },
+  Ghosted: { light: "#ec835a", dark: "#ec835a" },
   "In progress": { light: "#898781", dark: "#898781" },
   Accepted: { light: "#0ca30c", dark: "#0ca30c" },
 };
@@ -66,7 +68,9 @@ function buildSankey(apps: ApplicationWithEvents[]) {
         ? "Rejected"
         : app.status === "accepted"
           ? "Accepted"
-          : "In progress";
+          : app.status === "ghosted"
+            ? "Ghosted"
+            : "In progress";
     bump(STAGE_LABELS[app.stage], terminal);
   }
 
@@ -80,6 +84,7 @@ function buildSankey(apps: ApplicationWithEvents[]) {
     ...STAGES.map((s) => STAGE_LABELS[s]),
     "In progress",
     "Rejected",
+    "Ghosted",
     "Accepted",
   ].filter((id) => ids.has(id));
   return { nodes: ordered.map((id) => ({ id })), links };
@@ -100,22 +105,27 @@ function stageCounts(apps: ApplicationWithEvents[]) {
 }
 
 export default function FunnelPage() {
-  const [apps, setApps] = useState<ApplicationWithEvents[] | null>(null);
+  const [allApps, setAllApps] = useState<ApplicationWithEvents[] | null>(null);
   const dark = useDarkMode();
+  const { season, setSeason, apply } = useSeasonFilter();
 
   useEffect(() => {
     fetch("/api/applications")
       .then((r) => r.json())
-      .then(setApps);
+      .then(setAllApps);
   }, []);
 
+  const apps = useMemo(
+    () => (allApps === null ? null : apply(allApps)),
+    [allApps, apply]
+  );
   const data = useMemo(() => (apps ? buildSankey(apps) : null), [apps]);
   const counts = useMemo(() => (apps ? stageCounts(apps) : []), [apps]);
 
-  if (apps === null) {
+  if (apps === null || allApps === null) {
     return <p className="py-12 text-center text-sm text-muted">Loading…</p>;
   }
-  if (apps.length === 0) {
+  if (allApps.length === 0) {
     return (
       <p className="py-12 text-center text-sm text-muted">
         No applications yet — add some on the Tracker page and the funnel will
@@ -134,8 +144,9 @@ export default function FunnelPage() {
 
   return (
     <>
-      <div className="mb-4 flex items-baseline justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-sm font-semibold">Application funnel</h1>
+        <SeasonTabs apps={allApps} value={season} onChange={setSeason} />
         <span className="text-xs text-muted">
           {apps.length} application{apps.length === 1 ? "" : "s"} · hover a band
           for counts

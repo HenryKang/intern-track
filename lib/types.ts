@@ -1,6 +1,6 @@
 // Shared between server (lib/db.ts) and client components — no Node deps here.
 
-export type Status = "ongoing" | "rejected" | "accepted";
+export type Status = "ongoing" | "rejected" | "accepted" | "ghosted";
 export type Stage =
   | "applied"
   | "oa"
@@ -18,7 +18,7 @@ export const STAGES: Stage[] = [
   "final_round",
   "offer",
 ];
-export const STATUSES: Status[] = ["ongoing", "rejected", "accepted"];
+export const STATUSES: Status[] = ["ongoing", "rejected", "accepted", "ghosted"];
 
 export const STAGE_LABELS: Record<Stage, string> = {
   applied: "Applied",
@@ -32,6 +32,7 @@ export const STATUS_LABELS: Record<Status, string> = {
   ongoing: "Ongoing",
   rejected: "Rejected",
   accepted: "Accepted",
+  ghosted: "Ghosted",
 };
 export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   oa_deadline: "OA deadline",

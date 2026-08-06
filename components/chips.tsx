@@ -27,6 +27,7 @@ const STATUS_GLYPHS: Record<Status, { glyph: string; cls: string }> = {
   ongoing: { glyph: "●", cls: "text-accent" },
   rejected: { glyph: "✕", cls: "text-critical" },
   accepted: { glyph: "✓", cls: "text-good-text" },
+  ghosted: { glyph: "○", cls: "text-muted" },
 };
 
 export function StatusGlyph({ status }: { status: Status }) {

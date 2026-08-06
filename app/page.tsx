@@ -25,6 +25,7 @@ import {
   todayISO,
 } from "@/lib/types";
 import { StageSelect, StatusSelect } from "@/components/chips";
+import { SeasonTabs, useSeasonFilter } from "@/components/SeasonFilter";
 
 async function api(path: string, init?: RequestInit) {
   const res = await fetch(path, {
@@ -135,9 +136,9 @@ function QuickAdd({
     });
     setBusy(false);
     if (data.supported) {
-      setCompany(data.company);
-      setTitle(data.title);
-      setNote(`Autofilled from ${data.ats}`);
+      if (data.company) setCompany(data.company);
+      if (data.title) setTitle(data.title);
+      setNote(`Autofilled from ${data.ats} — double-check before adding`);
     } else {
       setNote(data.error);
     }
@@ -174,7 +175,7 @@ function QuickAdd({
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="Paste a job posting URL (Greenhouse / Lever / Ashby) — or fill in manually below"
+          placeholder="Paste any job posting URL (Greenhouse, Lever, Ashby, Workday, or a careers page) — or fill in manually"
           className={`${inputCls} flex-1`}
         />
         <button
@@ -454,6 +455,7 @@ function Tracker() {
   const [apps, setApps] = useState<ApplicationWithEvents[] | null>(null);
   const [activeOnly, setActiveOnly] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const { season, setSeason, apply } = useSeasonFilter();
   const searchParams = useSearchParams();
   const focusId = searchParams.get("focus");
   const focusedRef = useRef(false);
@@ -499,7 +501,7 @@ function Tracker() {
 
 
   const visible = useMemo(() => {
-    let list = apps ?? [];
+    let list = apply(apps ?? []);
     if (activeOnly) list = list.filter((a) => a.status === "ongoing");
     return [...list].sort((a, b) => {
       const [ga, ea] = sortKey(a);
@@ -508,7 +510,7 @@ function Tracker() {
       if (ga === 0) return ea.localeCompare(eb);
       return (b.date_applied ?? "").localeCompare(a.date_applied ?? "");
     });
-  }, [apps, activeOnly]);
+  }, [apps, activeOnly, apply]);
 
   // Group into season sections, chronological (Fall 2026 before Summer 2027),
   // apps without a season last.
@@ -535,11 +537,12 @@ function Tracker() {
     <>
       <QuickAdd onAdded={refresh} resumeOptions={uploadedResumes} />
 
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-sm font-semibold text-ink">
           Applications{" "}
           <span className="font-normal text-muted">({visible.length})</span>
         </h1>
+        <SeasonTabs apps={apps} value={season} onChange={setSeason} />
         <label className="flex cursor-pointer items-center gap-1.5 text-xs text-ink-2">
           <input
             type="checkbox"

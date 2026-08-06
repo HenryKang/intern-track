@@ -25,10 +25,14 @@ npm run seed -- --wipe   # wipe everything (start fresh for real use)
 - **`/` Tracker** — spreadsheet-style table: company, position (links to the
   posting), date applied, stage, status, next deadline, resume used. Inline
   editing on stage/status/resume; the ▸ chevron expands notes, the posting URL,
-  and OA-deadline/interview events. Paste a **Greenhouse / Lever / Ashby** job
-  URL into the quick-add box and Autofill fills company + title from the ATS's
-  public API (US + EU Greenhouse both supported). Unknown ATSs (e.g. Workday)
-  fall back to manual entry.
+  season, and OA-deadline/interview events. Rows group into **season sections**
+  (Fall 2026, Summer 2027, …) with a toggle to filter one season, remembered
+  across pages. Paste any job URL into the quick-add box: **Greenhouse (US/EU),
+  Lever, Ashby, and Workday** autofill from their public APIs; embedded
+  Greenhouse pages (`?gh_jid=`) are resolved via the domain; any other careers
+  page falls back to reading the page's JobPosting/OpenGraph metadata.
+  Applications still sitting at "applied" 60 days after the apply date are
+  automatically marked **ghosted** (a manual status change opts a row out).
 - **`/funnel`** — Sankey of the aggregate pipeline: Applied → OA → First Round
   → Tech Call → Final Round → Offer, with Rejected / In progress / Accepted
   terminals. Derived live from stage + status; the table below is the same data

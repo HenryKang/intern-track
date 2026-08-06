@@ -63,10 +63,27 @@ export function db(): Database.Database {
   if (!appCols.some((c) => c.name === "season")) {
     _db.exec("ALTER TABLE applications ADD COLUMN season TEXT");
   }
+  if (!appCols.some((c) => c.name === "status_manual")) {
+    _db.exec(
+      "ALTER TABLE applications ADD COLUMN status_manual INTEGER DEFAULT 0"
+    );
+  }
   return _db;
 }
 
 export function listApplications(): ApplicationWithEvents[] {
+  // Auto-ghost: still sitting at "applied" with no outcome 60+ days after the
+  // apply date means the company went silent. Runs lazily on every list; a
+  // manual status change on the row overrides it from then on.
+  db()
+    .prepare(
+      `UPDATE applications SET status = 'ghosted'
+       WHERE status = 'ongoing' AND stage = 'applied'
+         AND COALESCE(status_manual, 0) = 0
+         AND date_applied IS NOT NULL
+         AND date(date_applied) <= date('now', '-60 days')`
+    )
+    .run();
   const apps = db()
     .prepare("SELECT * FROM applications ORDER BY id DESC")
     .all() as Application[];
@@ -133,10 +150,14 @@ export function updateApplication(
 ): Application | null {
   const keys = Object.keys(patch).filter((k) => APP_COLUMNS.has(k));
   if (keys.length > 0) {
-    const sets = keys.map((k) => `${k} = @${k}`).join(", ");
+    // A user-set status opts the row out of the auto-ghost sweep.
+    const sets = keys
+      .map((k) => `${k} = @${k}`)
+      .concat(keys.includes("status") ? ["status_manual = 1"] : [])
+      .join(", ");
     db()
       .prepare(`UPDATE applications SET ${sets} WHERE id = @id`)
-      .run({ ...patch, id });
+      .run({ ...Object.fromEntries(keys.map((k) => [k, patch[k]])), id });
   }
   return (
     (db().prepare("SELECT * FROM applications WHERE id = ?").get(id) as

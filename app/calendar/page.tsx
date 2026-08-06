@@ -10,6 +10,7 @@ import {
   formatDateShort,
   todayISO,
 } from "@/lib/types";
+import { SeasonTabs, useSeasonFilter } from "@/components/SeasonFilter";
 
 interface CalEvent extends AppEvent {
   company: string;
@@ -73,6 +74,7 @@ export default function CalendarPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [apps, setApps] = useState<ApplicationWithEvents[] | null>(null);
+  const { season, setSeason, apply } = useSeasonFilter();
 
   useEffect(() => {
     fetch("/api/applications")
@@ -82,10 +84,10 @@ export default function CalendarPage() {
 
   const events = useMemo<CalEvent[]>(
     () =>
-      (apps ?? []).flatMap((a) =>
+      apply(apps ?? []).flatMap((a) =>
         a.events.map((e) => ({ ...e, company: a.company, title: a.title }))
       ),
-    [apps]
+    [apps, apply]
   );
 
   const byDate = useMemo(() => {
@@ -158,7 +160,7 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="mb-2 flex items-center gap-4 text-xs text-ink-2">
+        <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-ink-2">
           <span className="inline-flex items-center gap-1.5">
             <span aria-hidden className="size-2 rounded-full bg-cat-2" />
             OA deadline
@@ -167,6 +169,7 @@ export default function CalendarPage() {
             <span aria-hidden className="size-2 rounded-full bg-cat-1" />
             Interview
           </span>
+          <SeasonTabs apps={apps ?? []} value={season} onChange={setSeason} />
         </div>
 
         <div className="overflow-hidden rounded-xl border border-hairline bg-surface">
