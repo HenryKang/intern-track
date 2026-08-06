@@ -56,6 +56,13 @@ export function db(): Database.Database {
       uploaded_at TEXT DEFAULT (datetime('now'))
     );
   `);
+  // Additive migrations for columns introduced after the original schema.
+  const appCols = _db.prepare("PRAGMA table_info(applications)").all() as {
+    name: string;
+  }[];
+  if (!appCols.some((c) => c.name === "season")) {
+    _db.exec("ALTER TABLE applications ADD COLUMN season TEXT");
+  }
   return _db;
 }
 
@@ -82,13 +89,14 @@ export function createApplication(input: {
   date_applied?: string | null;
   status?: Status;
   stage?: Stage;
+  season?: string | null;
   resume?: string | null;
   notes?: string | null;
 }): ApplicationWithEvents {
   const res = db()
     .prepare(
-      `INSERT INTO applications (company, title, url, date_applied, status, stage, resume, notes)
-       VALUES (@company, @title, @url, @date_applied, @status, @stage, @resume, @notes)`
+      `INSERT INTO applications (company, title, url, date_applied, status, stage, season, resume, notes)
+       VALUES (@company, @title, @url, @date_applied, @status, @stage, @season, @resume, @notes)`
     )
     .run({
       company: input.company,
@@ -97,6 +105,7 @@ export function createApplication(input: {
       date_applied: input.date_applied ?? null,
       status: input.status ?? "ongoing",
       stage: input.stage ?? "applied",
+      season: input.season ?? null,
       resume: input.resume ?? null,
       notes: input.notes ?? null,
     });
@@ -113,6 +122,7 @@ const APP_COLUMNS = new Set([
   "date_applied",
   "status",
   "stage",
+  "season",
   "resume",
   "notes",
 ]);

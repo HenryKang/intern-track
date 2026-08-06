@@ -64,9 +64,23 @@ export interface Application {
   date_applied: string | null; // "YYYY-MM-DD"
   status: Status;
   stage: Stage;
+  season: string | null; // e.g. "Summer 2027"
   resume: string | null;
   notes: string | null;
   created_at: string;
+}
+
+export const SEASON_TERMS = ["Spring", "Summer", "Fall", "Winter"] as const;
+
+/** Chronological sort key for "Term YYYY" seasons; unknown/missing sort last. */
+export function seasonOrder(season: string | null | undefined): number {
+  if (!season) return Number.MAX_SAFE_INTEGER;
+  const m = season.match(/^(Spring|Summer|Fall|Winter) (\d{4})$/);
+  if (!m) return Number.MAX_SAFE_INTEGER - 1;
+  return (
+    Number(m[2]) * 10 +
+    SEASON_TERMS.indexOf(m[1] as (typeof SEASON_TERMS)[number])
+  );
 }
 
 export interface ApplicationWithEvents extends Application {

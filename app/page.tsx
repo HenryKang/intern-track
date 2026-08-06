@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   Suspense,
   useCallback,
   useEffect,
@@ -16,9 +17,11 @@ import {
   EVENT_TYPE_LABELS,
   Stage,
   Status,
+  SEASON_TERMS,
   daysUntil,
   formatDateShort,
   nextUpcomingEvent,
+  seasonOrder,
   todayISO,
 } from "@/lib/types";
 import { StageSelect, StatusSelect } from "@/components/chips";
@@ -33,6 +36,43 @@ async function api(path: string, init?: RequestInit) {
 
 const inputCls =
   "rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
+
+// "Fall 2026", "Summer 2027", … for the current year through +2.
+const SEASON_OPTIONS = (() => {
+  const y = new Date().getFullYear();
+  const out: string[] = [];
+  for (let yr = y; yr <= y + 2; yr++) {
+    for (const term of SEASON_TERMS) out.push(`${term} ${yr}`);
+  }
+  return out;
+})();
+
+function SeasonSelect({
+  value,
+  onChange,
+  compact,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  compact?: boolean;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`rounded-md border border-hairline bg-surface text-ink outline-none focus:border-accent ${
+        compact ? "px-1.5 py-1 text-xs" : "px-2.5 py-1.5 text-sm"
+      }`}
+    >
+      <option value="">—</option>
+      {SEASON_OPTIONS.map((s) => (
+        <option key={s} value={s}>
+          {s}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 function ResumeSelect({
   value,
@@ -81,6 +121,7 @@ function QuickAdd({
   const [title, setTitle] = useState("");
   const [dateApplied, setDateApplied] = useState(todayISO());
   const [resume, setResume] = useState("");
+  const [season, setSeason] = useState("");
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -112,6 +153,7 @@ function QuickAdd({
         title: title.trim(),
         url: url.trim() || null,
         date_applied: dateApplied || null,
+        season: season || null,
         resume: resume.trim() || null,
       }),
     });
@@ -171,6 +213,10 @@ function QuickAdd({
             onChange={(e) => setDateApplied(e.target.value)}
             className={inputCls}
           />
+        </label>
+        <label className="flex basis-36 flex-col gap-1 text-xs text-muted">
+          Season
+          <SeasonSelect value={season} onChange={setSeason} />
         </label>
         <label className="flex basis-40 flex-col gap-1 text-xs text-muted">
           Resume used
@@ -329,6 +375,13 @@ function DetailPanel({
             className={inputCls}
           />
         </label>
+        <label className="flex flex-col gap-1 text-xs text-muted">
+          Season
+          <SeasonSelect
+            value={app.season ?? ""}
+            onChange={(v) => onPatch({ season: v || null })}
+          />
+        </label>
         <button
           onClick={deleteApp}
           className="self-start text-xs text-muted hover:text-critical"
@@ -457,6 +510,23 @@ function Tracker() {
     });
   }, [apps, activeOnly]);
 
+  // Group into season sections, chronological (Fall 2026 before Summer 2027),
+  // apps without a season last.
+  const sections = useMemo(() => {
+    const map = new Map<string, ApplicationWithEvents[]>();
+    for (const a of visible) {
+      const key = a.season ?? "";
+      const list = map.get(key) ?? [];
+      list.push(a);
+      map.set(key, list);
+    }
+    return Array.from(map.entries()).sort(
+      (x, y) => seasonOrder(x[0] || null) - seasonOrder(y[0] || null)
+    );
+  }, [visible]);
+  const showSectionHeaders =
+    sections.length > 1 || (sections.length === 1 && sections[0][0] !== "");
+
   if (apps === null) {
     return <p className="py-12 text-center text-sm text-muted">Loading…</p>;
   }
@@ -505,18 +575,35 @@ function Tracker() {
                 </td>
               </tr>
             )}
-            {visible.map((app) => (
-              <TrackerRow
-                key={app.id}
-                app={app}
-                expanded={expanded === app.id}
-                onToggle={() =>
-                  setExpanded(expanded === app.id ? null : app.id)
-                }
-                onPatch={(p) => patchApp(app.id, p)}
-                refresh={refresh}
-                resumeOptions={uploadedResumes}
-              />
+            {sections.map(([season, list]) => (
+              <Fragment key={season || "none"}>
+                {showSectionHeaders && (
+                  <tr className="border-b border-hairline bg-page/80">
+                    <td
+                      colSpan={8}
+                      className="px-4 py-1.5 text-xs font-semibold text-ink-2"
+                    >
+                      {season || "No season"}{" "}
+                      <span className="font-normal text-muted">
+                        ({list.length})
+                      </span>
+                    </td>
+                  </tr>
+                )}
+                {list.map((app) => (
+                  <TrackerRow
+                    key={app.id}
+                    app={app}
+                    expanded={expanded === app.id}
+                    onToggle={() =>
+                      setExpanded(expanded === app.id ? null : app.id)
+                    }
+                    onPatch={(p) => patchApp(app.id, p)}
+                    refresh={refresh}
+                    resumeOptions={uploadedResumes}
+                  />
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>
