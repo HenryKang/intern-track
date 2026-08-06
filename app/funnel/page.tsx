@@ -26,18 +26,16 @@ function useDarkMode(): boolean {
 const STAGE_HEX: Record<"light" | "dark", Record<Stage, string>> = {
   light: {
     applied: "#86b6ef",
-    oa: "#6d9bd3",
-    first_round: "#5480b8",
-    tech_call: "#3c679e",
-    final_round: "#254e84",
+    oa: "#6694cd",
+    first_round: "#4874ab",
+    final_round: "#2b548b",
     offer: "#0d366b",
   },
   dark: {
     applied: "#184f95",
     oa: "#256abf",
     first_round: "#3987e5",
-    tech_call: "#6da7ec",
-    final_round: "#9ec5f4",
+    final_round: "#6da7ec",
     offer: "#cde2fb",
   },
 };

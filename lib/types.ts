@@ -5,7 +5,6 @@ export type Stage =
   | "applied"
   | "oa"
   | "first_round"
-  | "tech_call"
   | "final_round"
   | "offer";
 export type EventType = "oa_deadline" | "interview";
@@ -14,7 +13,6 @@ export const STAGES: Stage[] = [
   "applied",
   "oa",
   "first_round",
-  "tech_call",
   "final_round",
   "offer",
 ];
@@ -24,7 +22,6 @@ export const STAGE_LABELS: Record<Stage, string> = {
   applied: "Applied",
   oa: "OA",
   first_round: "First Round",
-  tech_call: "Tech Call",
   final_round: "Final Round",
   offer: "Offer",
 };
@@ -44,9 +41,8 @@ export const STAGE_COLOR_VARS: Record<Stage, string> = {
   applied: "var(--stage-1)",
   oa: "var(--stage-2)",
   first_round: "var(--stage-3)",
-  tech_call: "var(--stage-4)",
-  final_round: "var(--stage-5)",
-  offer: "var(--stage-6)",
+  final_round: "var(--stage-4)",
+  offer: "var(--stage-5)",
 };
 
 export interface AppEvent {

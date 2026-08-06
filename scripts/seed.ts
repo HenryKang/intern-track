@@ -60,7 +60,7 @@ const SEED: SeedApp[] = [
     title: "Software Engineering Intern",
     url: "https://stripe.com/jobs/listing/software-engineering-intern",
     applied: 30,
-    stage: "tech_call",
+    stage: "first_round",
     status: "ongoing",
     resume: "swe-v3",
     events: [

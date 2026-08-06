@@ -34,7 +34,7 @@ npm run seed -- --wipe   # wipe everything (start fresh for real use)
   Applications still sitting at "applied" 60 days after the apply date are
   automatically marked **ghosted** (a manual status change opts a row out).
 - **`/funnel`** — Sankey of the aggregate pipeline: Applied → OA → First Round
-  → Tech Call → Final Round → Offer, with Rejected / In progress / Accepted
+  → Final Round → Offer, with Awaiting response / Rejected / Ghosted / Accepted
   terminals. Derived live from stage + status; the table below is the same data
   in text form.
 - **`/calendar`** — month grid of OA deadlines (orange) and interviews (blue),
@@ -48,9 +48,10 @@ npm run seed -- --wipe   # wipe everything (start fresh for real use)
 ## Data model
 
 Two tables in `lib/db.ts`: `applications` (company, title, url, date_applied,
-`status` = ongoing|rejected|accepted, `stage` = applied|oa|first_round|
-tech_call|final_round|offer, resume, notes) and `events`
-(oa_deadline|interview, datetime, label) — multiple events per application.
+`status` = ongoing|rejected|accepted|ghosted, `stage` = applied|oa|
+first_round|final_round|offer, season, resume, notes) and `events`
+(oa_deadline|interview, datetime, label, link, done) — multiple events per
+application.
 `stage` is the furthest point reached; the Sankey infers the full path from it,
 so there's no separate history table.
 

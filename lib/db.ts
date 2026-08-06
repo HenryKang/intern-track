@@ -77,6 +77,10 @@ export function db(): Database.Database {
   if (!eventCols.some((c) => c.name === "done")) {
     _db.exec("ALTER TABLE events ADD COLUMN done INTEGER DEFAULT 0");
   }
+  // The tech_call stage was removed 2026-08; fold old rows into first_round.
+  _db.exec(
+    "UPDATE applications SET stage = 'first_round' WHERE stage = 'tech_call'"
+  );
   return _db;
 }
 
