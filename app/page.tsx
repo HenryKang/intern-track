@@ -34,7 +34,48 @@ async function api(path: string, init?: RequestInit) {
 const inputCls =
   "rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
 
-function QuickAdd({ onAdded }: { onAdded: () => void }) {
+function ResumeSelect({
+  value,
+  options,
+  onChange,
+  autoFocus,
+  onBlur,
+  compact,
+}: {
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+  autoFocus?: boolean;
+  onBlur?: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <select
+      value={value}
+      autoFocus={autoFocus}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      className={`rounded-md border border-hairline bg-surface text-ink outline-none focus:border-accent ${
+        compact ? "px-1.5 py-0.5 text-xs" : "px-2.5 py-1.5 text-sm"
+      }`}
+    >
+      <option value="">—</option>
+      {options.map((name) => (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function QuickAdd({
+  onAdded,
+  resumeOptions,
+}: {
+  onAdded: () => void;
+  resumeOptions: string[];
+}) {
   const [url, setUrl] = useState("");
   const [company, setCompany] = useState("");
   const [title, setTitle] = useState("");
@@ -133,12 +174,10 @@ function QuickAdd({ onAdded }: { onAdded: () => void }) {
         </label>
         <label className="flex basis-40 flex-col gap-1 text-xs text-muted">
           Resume used
-          <input
+          <ResumeSelect
             value={resume}
-            onChange={(e) => setResume(e.target.value)}
-            list="resume-options"
-            placeholder="e.g. swe-v3"
-            className={inputCls}
+            options={resumeOptions}
+            onChange={setResume}
           />
         </label>
         <button
@@ -405,18 +444,6 @@ function Tracker() {
     });
   }
 
-  const resumes = useMemo(
-    () =>
-      Array.from(
-        new Set([
-          ...uploadedResumes,
-          ...(apps ?? [])
-            .map((a) => a.resume)
-            .filter((r): r is string => !!r),
-        ])
-      ),
-    [apps, uploadedResumes]
-  );
 
   const visible = useMemo(() => {
     let list = apps ?? [];
@@ -436,13 +463,7 @@ function Tracker() {
 
   return (
     <>
-      <datalist id="resume-options">
-        {resumes.map((r) => (
-          <option key={r} value={r} />
-        ))}
-      </datalist>
-
-      <QuickAdd onAdded={refresh} />
+      <QuickAdd onAdded={refresh} resumeOptions={uploadedResumes} />
 
       <div className="mb-2 flex items-center justify-between">
         <h1 className="text-sm font-semibold text-ink">
@@ -494,6 +515,7 @@ function Tracker() {
                 }
                 onPatch={(p) => patchApp(app.id, p)}
                 refresh={refresh}
+                resumeOptions={uploadedResumes}
               />
             ))}
           </tbody>
@@ -509,15 +531,16 @@ function TrackerRow({
   onToggle,
   onPatch,
   refresh,
+  resumeOptions,
 }: {
   app: ApplicationWithEvents;
   expanded: boolean;
   onToggle: () => void;
   onPatch: (patch: Partial<ApplicationWithEvents>) => void;
   refresh: () => void;
+  resumeOptions: string[];
 }) {
   const [editingResume, setEditingResume] = useState(false);
-  const [resumeDraft, setResumeDraft] = useState(app.resume ?? "");
   const done = app.status !== "ongoing";
 
   return (
@@ -566,27 +589,20 @@ function TrackerRow({
         </td>
         <td className="px-3 py-2.5 text-xs text-ink-2">
           {editingResume ? (
-            <input
+            <ResumeSelect
+              compact
               autoFocus
-              value={resumeDraft}
-              list="resume-options"
-              onChange={(e) => setResumeDraft(e.target.value)}
-              onBlur={() => {
+              value={app.resume ?? ""}
+              options={resumeOptions}
+              onChange={(v) => {
                 setEditingResume(false);
-                if (resumeDraft !== (app.resume ?? ""))
-                  onPatch({ resume: resumeDraft || null });
+                if (v !== (app.resume ?? "")) onPatch({ resume: v || null });
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              }}
-              className={`${inputCls} w-24 px-1.5 py-0.5 text-xs`}
+              onBlur={() => setEditingResume(false)}
             />
           ) : (
             <button
-              onClick={() => {
-                setResumeDraft(app.resume ?? "");
-                setEditingResume(true);
-              }}
+              onClick={() => setEditingResume(true)}
               className="rounded px-1 py-0.5 hover:bg-hairline"
               title="Edit resume used"
             >
