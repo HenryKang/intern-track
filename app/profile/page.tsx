@@ -17,14 +17,15 @@ interface ResumeFile {
 // we normalize to https:// on save instead. Education dates use type="month"
 // pickers so values are always structured YYYY-MM (no "May" vs "may" vs "5").
 const URL_KEYS = new Set(["github", "linkedin", "website"]);
+const DATE_KEYS = new Set(["start", "graduation"]);
 
 const FIELDS: { key: string; label: string; placeholder: string; type?: string }[] = [
   { key: "name", label: "Name", placeholder: "Henry Kang" },
   { key: "email", label: "Email", placeholder: "you@example.com", type: "email" },
   { key: "phone", label: "Phone", placeholder: "(555) 555-5555", type: "tel" },
   { key: "school", label: "School", placeholder: "University of Michigan" },
-  { key: "start", label: "Started", placeholder: "", type: "month" },
-  { key: "graduation", label: "Graduation", placeholder: "", type: "month" },
+  { key: "start", label: "Started", placeholder: "", type: "dateselect" },
+  { key: "graduation", label: "Graduation", placeholder: "", type: "dateselect" },
   { key: "github", label: "GitHub", placeholder: "github.com/…" },
   { key: "linkedin", label: "LinkedIn", placeholder: "www.linkedin.com/in/…" },
   { key: "website", label: "Website", placeholder: "your-site.com" },
@@ -38,6 +39,98 @@ function normalizeUrl(value: string): string {
 
 const inputCls =
   "rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/** Month / Day / Year dropdowns storing "YYYY-MM-DD" (parses partial "YYYY-MM"
+    values from the old month picker; commits only when all three are chosen). */
+function DateSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [y = "", m = "", d = ""] = value.split("-");
+  const nowYear = new Date().getFullYear();
+  const years = Array.from({ length: 21 }, (_, i) => String(nowYear - 12 + i));
+  const daysInMonth =
+    y && m ? new Date(Number(y), Number(m), 0).getDate() : 31;
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  function update(part: "y" | "m" | "d", v: string) {
+    let [ny, nm, nd] = [y, m, d];
+    if (part === "y") ny = v;
+    if (part === "m") nm = v;
+    if (part === "d") nd = v;
+    // Clamp day if the new month/year has fewer days (e.g. Feb 30 → Feb 28).
+    if (ny && nm && nd) {
+      const max = new Date(Number(ny), Number(nm), 0).getDate();
+      if (Number(nd) > max) nd = String(max).padStart(2, "0");
+    }
+    // Partial picks round-trip through split("-"); saveProfile strips them.
+    onChange([ny, nm, nd].join("-"));
+  }
+
+  const selectCls =
+    "rounded-md border border-hairline bg-surface px-2 py-1.5 text-sm text-ink outline-none focus:border-accent";
+
+  return (
+    <div className="flex gap-1.5">
+      <select
+        value={m}
+        onChange={(e) => update("m", e.target.value)}
+        className={`${selectCls} flex-[2]`}
+      >
+        <option value="">Month</option>
+        {MONTHS.map((name, i) => (
+          <option key={name} value={String(i + 1).padStart(2, "0")}>
+            {name}
+          </option>
+        ))}
+      </select>
+      <select
+        value={d ? String(Number(d)) : ""}
+        onChange={(e) =>
+          update("d", e.target.value ? e.target.value.padStart(2, "0") : "")
+        }
+        className={`${selectCls} flex-1`}
+      >
+        <option value="">Day</option>
+        {days.map((day) => (
+          <option key={day} value={String(day)}>
+            {day}
+          </option>
+        ))}
+      </select>
+      <select
+        value={y}
+        onChange={(e) => update("y", e.target.value)}
+        className={`${selectCls} flex-1`}
+      >
+        <option value="">Year</option>
+        {years.map((yr) => (
+          <option key={yr} value={yr}>
+            {yr}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 function formatSize(bytes: number | null): string {
   if (!bytes) return "";
@@ -65,10 +158,12 @@ export default function ProfilePage() {
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
     const normalized = Object.fromEntries(
-      Object.entries(profile ?? {}).map(([k, v]) => [
-        k,
-        URL_KEYS.has(k) ? normalizeUrl(v) : v,
-      ])
+      Object.entries(profile ?? {}).map(([k, v]) => {
+        if (URL_KEYS.has(k)) return [k, normalizeUrl(v)];
+        // Incomplete date picks (missing month/day/year) save as empty.
+        if (DATE_KEYS.has(k) && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return [k, ""];
+        return [k, v];
+      })
     );
     const res = await fetch("/api/profile", {
       method: "PUT",
@@ -127,15 +222,24 @@ export default function ProfilePage() {
             {FIELDS.map((f) => (
               <label key={f.key} className="flex flex-col gap-1 text-xs text-muted">
                 {f.label}
-                <input
-                  type={f.type ?? "text"}
-                  value={profile[f.key] ?? ""}
-                  placeholder={f.placeholder}
-                  onChange={(e) =>
-                    setProfileState({ ...profile, [f.key]: e.target.value })
-                  }
-                  className={inputCls}
-                />
+                {f.type === "dateselect" ? (
+                  <DateSelect
+                    value={profile[f.key] ?? ""}
+                    onChange={(v) =>
+                      setProfileState({ ...profile, [f.key]: v })
+                    }
+                  />
+                ) : (
+                  <input
+                    type={f.type ?? "text"}
+                    value={profile[f.key] ?? ""}
+                    placeholder={f.placeholder}
+                    onChange={(e) =>
+                      setProfileState({ ...profile, [f.key]: e.target.value })
+                    }
+                    className={inputCls}
+                  />
+                )}
               </label>
             ))}
           </div>
