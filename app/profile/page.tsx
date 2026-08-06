@@ -12,16 +12,29 @@ interface ResumeFile {
   uploaded_at: string;
 }
 
+// Link fields are plain text on purpose: native type="url" validation rejects
+// scheme-less URLs like "www.linkedin.com/in/…" (LinkedIn's own copy format);
+// we normalize to https:// on save instead. Education dates use type="month"
+// pickers so values are always structured YYYY-MM (no "May" vs "may" vs "5").
+const URL_KEYS = new Set(["github", "linkedin", "website"]);
+
 const FIELDS: { key: string; label: string; placeholder: string; type?: string }[] = [
   { key: "name", label: "Name", placeholder: "Henry Kang" },
   { key: "email", label: "Email", placeholder: "you@example.com", type: "email" },
   { key: "phone", label: "Phone", placeholder: "(555) 555-5555", type: "tel" },
   { key: "school", label: "School", placeholder: "University of Michigan" },
-  { key: "graduation", label: "Graduation", placeholder: "May 2028" },
-  { key: "github", label: "GitHub", placeholder: "https://github.com/…", type: "url" },
-  { key: "linkedin", label: "LinkedIn", placeholder: "https://linkedin.com/in/…", type: "url" },
-  { key: "website", label: "Website", placeholder: "https://…", type: "url" },
+  { key: "start", label: "Started", placeholder: "", type: "month" },
+  { key: "graduation", label: "Graduation", placeholder: "", type: "month" },
+  { key: "github", label: "GitHub", placeholder: "github.com/…" },
+  { key: "linkedin", label: "LinkedIn", placeholder: "www.linkedin.com/in/…" },
+  { key: "website", label: "Website", placeholder: "your-site.com" },
 ];
+
+function normalizeUrl(value: string): string {
+  const v = value.trim();
+  if (!v || /^https?:\/\//i.test(v)) return v;
+  return `https://${v}`;
+}
 
 const inputCls =
   "rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
@@ -51,11 +64,18 @@ export default function ProfilePage() {
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
-    await fetch("/api/profile", {
+    const normalized = Object.fromEntries(
+      Object.entries(profile ?? {}).map(([k, v]) => [
+        k,
+        URL_KEYS.has(k) ? normalizeUrl(v) : v,
+      ])
+    );
+    const res = await fetch("/api/profile", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(profile),
+      body: JSON.stringify(normalized),
     });
+    setProfileState(await res.json());
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }

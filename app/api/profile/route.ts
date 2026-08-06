@@ -8,6 +8,7 @@ const PROFILE_KEYS = new Set([
   "email",
   "phone",
   "school",
+  "start",
   "graduation",
   "github",
   "linkedin",
