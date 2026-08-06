@@ -45,7 +45,7 @@ const STAGE_HEX: Record<"light" | "dark", Record<Stage, string>> = {
 const TERMINAL_HEX = {
   Rejected: { light: "#d03b3b", dark: "#d03b3b" },
   Ghosted: { light: "#ec835a", dark: "#ec835a" },
-  "In progress": { light: "#898781", dark: "#898781" },
+  "Awaiting response": { light: "#898781", dark: "#898781" },
   Accepted: { light: "#0ca30c", dark: "#0ca30c" },
 };
 
@@ -63,15 +63,19 @@ function buildSankey(apps: ApplicationWithEvents[]) {
     for (let i = 0; i < reached; i++) {
       bump(STAGE_LABELS[STAGES[i]], STAGE_LABELS[STAGES[i + 1]]);
     }
-    const terminal: Terminal =
-      app.status === "rejected"
-        ? "Rejected"
-        : app.status === "accepted"
-          ? "Accepted"
-          : app.status === "ghosted"
-            ? "Ghosted"
-            : "In progress";
-    bump(STAGE_LABELS[app.stage], terminal);
+    // Terminals: rejected/ghosted/accepted branch off the stage they ended at.
+    // Ongoing apps still waiting to hear back after applying flow to
+    // "Awaiting response" (same column as OA/Rejected); ongoing apps already
+    // past "applied" simply end at their current stage node — no filler bar.
+    if (app.status === "rejected") {
+      bump(STAGE_LABELS[app.stage], "Rejected");
+    } else if (app.status === "accepted") {
+      bump(STAGE_LABELS[app.stage], "Accepted");
+    } else if (app.status === "ghosted") {
+      bump(STAGE_LABELS[app.stage], "Ghosted");
+    } else if (app.stage === "applied") {
+      bump(STAGE_LABELS.applied, "Awaiting response");
+    }
   }
 
   const links = Array.from(linkWeights, ([key, value]) => {
@@ -82,7 +86,7 @@ function buildSankey(apps: ApplicationWithEvents[]) {
   // Preserve stage order, then terminals — nivo keeps layer order stable.
   const ordered = [
     ...STAGES.map((s) => STAGE_LABELS[s]),
-    "In progress",
+    "Awaiting response",
     "Rejected",
     "Ghosted",
     "Accepted",

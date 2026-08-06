@@ -73,7 +73,9 @@ export interface Application {
   created_at: string;
 }
 
-export const SEASON_TERMS = ["Spring", "Summer", "Fall", "Winter"] as const;
+// Winter YYYY means Jan–Mar of that year, so it comes FIRST within a year:
+// Winter 2027 → Spring 2027 → Summer 2027 → Fall 2027 → Winter 2028.
+export const SEASON_TERMS = ["Winter", "Spring", "Summer", "Fall"] as const;
 
 /** Chronological sort key for "Term YYYY" seasons; unknown/missing sort last. */
 export function seasonOrder(season: string | null | undefined): number {
