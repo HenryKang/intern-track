@@ -68,6 +68,15 @@ export function db(): Database.Database {
       "ALTER TABLE applications ADD COLUMN status_manual INTEGER DEFAULT 0"
     );
   }
+  const eventCols = _db.prepare("PRAGMA table_info(events)").all() as {
+    name: string;
+  }[];
+  if (!eventCols.some((c) => c.name === "url")) {
+    _db.exec("ALTER TABLE events ADD COLUMN url TEXT");
+  }
+  if (!eventCols.some((c) => c.name === "done")) {
+    _db.exec("ALTER TABLE events ADD COLUMN done INTEGER DEFAULT 0");
+  }
   return _db;
 }
 
@@ -175,19 +184,20 @@ export function createEvent(input: {
   type: EventType;
   starts_at: string;
   label?: string | null;
+  url?: string | null;
 }): AppEvent {
   const res = db()
     .prepare(
-      `INSERT INTO events (application_id, type, starts_at, label)
-       VALUES (@application_id, @type, @starts_at, @label)`
+      `INSERT INTO events (application_id, type, starts_at, label, url)
+       VALUES (@application_id, @type, @starts_at, @label, @url)`
     )
-    .run({ ...input, label: input.label ?? null });
+    .run({ ...input, label: input.label ?? null, url: input.url ?? null });
   return db()
     .prepare("SELECT * FROM events WHERE id = ?")
     .get(res.lastInsertRowid) as AppEvent;
 }
 
-const EVENT_COLUMNS = new Set(["type", "starts_at", "label"]);
+const EVENT_COLUMNS = new Set(["type", "starts_at", "label", "url", "done"]);
 
 export function updateEvent(
   id: number,

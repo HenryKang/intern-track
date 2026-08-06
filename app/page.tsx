@@ -253,10 +253,23 @@ function NextDeadlineCell({ app }: { app: ApplicationWithEvents }) {
           ev.type === "oa_deadline" ? "bg-cat-2" : "bg-cat-1"
         }`}
       />
-      <span className="text-ink-2">
-        {ev.type === "oa_deadline" ? "OA due" : "Interview"}{" "}
-        {formatDateShort(ev.starts_at)}
-      </span>
+      {ev.url ? (
+        <a
+          href={ev.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-accent hover:underline"
+          title="Open link"
+        >
+          {ev.type === "oa_deadline" ? "OA due" : "Interview"}{" "}
+          {formatDateShort(ev.starts_at)} ↗
+        </a>
+      ) : (
+        <span className="text-ink-2">
+          {ev.type === "oa_deadline" ? "OA due" : "Interview"}{" "}
+          {formatDateShort(ev.starts_at)}
+        </span>
+      )}
       <span className={urgent ? "font-semibold text-critical" : "text-muted"}>
         {urgent ? "⚠ " : ""}
         {dayText}
@@ -268,20 +281,30 @@ function NextDeadlineCell({ app }: { app: ApplicationWithEvents }) {
 function EventRow({
   ev,
   onDelete,
+  onToggleDone,
 }: {
   ev: AppEvent;
   onDelete: () => void;
+  onToggleDone: () => void;
 }) {
   const past = daysUntil(ev.starts_at) < 0;
+  const dim = past || !!ev.done;
   return (
     <li className="flex items-center gap-2 text-xs">
+      <input
+        type="checkbox"
+        checked={!!ev.done}
+        onChange={onToggleDone}
+        title={ev.done ? "Mark as not done" : "Mark as done"}
+        className="accent-[var(--accent)]"
+      />
       <span
         aria-hidden
         className={`inline-block size-2 rounded-full ${
           ev.type === "oa_deadline" ? "bg-cat-2" : "bg-cat-1"
         }`}
       />
-      <span className={past ? "text-muted line-through" : "text-ink-2"}>
+      <span className={dim ? "text-muted line-through" : "text-ink-2"}>
         {EVENT_TYPE_LABELS[ev.type]} · {formatDateShort(ev.starts_at)}
         {ev.starts_at.length > 10 &&
           " " +
@@ -291,6 +314,17 @@ function EventRow({
             })}
         {ev.label ? ` — ${ev.label}` : ""}
       </span>
+      {ev.url && (
+        <a
+          href={ev.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-accent hover:underline"
+          title={ev.url}
+        >
+          Open ↗
+        </a>
+      )}
       <button
         onClick={onDelete}
         className="text-muted hover:text-critical"
@@ -316,6 +350,7 @@ function DetailPanel({
   const [evDate, setEvDate] = useState("");
   const [evTime, setEvTime] = useState("");
   const [evLabel, setEvLabel] = useState("");
+  const [evUrl, setEvUrl] = useState("");
   const [editUrl, setEditUrl] = useState(app.url ?? "");
 
   async function addEvent(e: React.FormEvent) {
@@ -323,6 +358,7 @@ function DetailPanel({
     if (!evDate) return;
     const starts_at =
       evType === "interview" && evTime ? `${evDate}T${evTime}` : evDate;
+    const link = evUrl.trim();
     await api("/api/events", {
       method: "POST",
       body: JSON.stringify({
@@ -330,11 +366,21 @@ function DetailPanel({
         type: evType,
         starts_at,
         label: evLabel.trim() || null,
+        url: link ? (/^https?:\/\//i.test(link) ? link : `https://${link}`) : null,
       }),
     });
     setEvDate("");
     setEvTime("");
     setEvLabel("");
+    setEvUrl("");
+    refresh();
+  }
+
+  async function toggleEventDone(ev: AppEvent) {
+    await api(`/api/events/${ev.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ done: ev.done ? 0 : 1 }),
+    });
     refresh();
   }
 
@@ -395,7 +441,12 @@ function DetailPanel({
         {app.events.length > 0 ? (
           <ul className="flex flex-col gap-1.5">
             {app.events.map((ev) => (
-              <EventRow key={ev.id} ev={ev} onDelete={() => deleteEvent(ev.id)} />
+              <EventRow
+                key={ev.id}
+                ev={ev}
+                onDelete={() => deleteEvent(ev.id)}
+                onToggleDone={() => toggleEventDone(ev)}
+              />
             ))}
           </ul>
         ) : (
@@ -429,7 +480,13 @@ function DetailPanel({
             value={evLabel}
             onChange={(e) => setEvLabel(e.target.value)}
             placeholder="Label (optional)"
-            className={`${inputCls} w-36 text-xs`}
+            className={`${inputCls} w-32 text-xs`}
+          />
+          <input
+            value={evUrl}
+            onChange={(e) => setEvUrl(e.target.value)}
+            placeholder="Link — OA invite / meeting (optional)"
+            className={`${inputCls} w-56 text-xs`}
           />
           <button
             type="submit"

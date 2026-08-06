@@ -55,6 +55,8 @@ export interface AppEvent {
   type: EventType;
   starts_at: string; // ISO datetime; OA deadlines use date-only "YYYY-MM-DD"
   label: string | null;
+  url: string | null; // OA invite / meeting link
+  done: number; // 0 | 1 — completed OAs / finished interviews
 }
 
 export interface Application {
@@ -109,11 +111,11 @@ export function formatDateShort(iso: string): string {
   });
 }
 
-/** Soonest event today-or-later, if any. */
+/** Soonest not-done event today-or-later, if any. */
 export function nextUpcomingEvent(events: AppEvent[]): AppEvent | null {
   const today = todayISO();
   const upcoming = events
-    .filter((e) => e.starts_at.slice(0, 10) >= today)
+    .filter((e) => !e.done && e.starts_at.slice(0, 10) >= today)
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   return upcoming[0] ?? null;
 }

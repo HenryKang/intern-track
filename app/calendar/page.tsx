@@ -53,7 +53,9 @@ function EventChip({ ev }: { ev: CalEvent }) {
       title={`${ev.company} — ${EVENT_TYPE_LABELS[ev.type]}${
         time ? ` at ${time}` : ""
       }${ev.label ? ` (${ev.label})` : ""}`}
-      className="flex items-center gap-1 truncate rounded border border-hairline bg-surface px-1 py-0.5 text-[11px] leading-tight text-ink-2 hover:border-baseline"
+      className={`flex items-center gap-1 truncate rounded border border-hairline bg-surface px-1 py-0.5 text-[11px] leading-tight hover:border-baseline ${
+        ev.done ? "text-muted line-through opacity-60" : "text-ink-2"
+      }`}
     >
       <span
         aria-hidden
@@ -108,7 +110,7 @@ export default function CalendarPage() {
       events
         .filter((e) => {
           const d = daysUntil(e.starts_at);
-          return d >= 0 && d <= 14;
+          return !e.done && d >= 0 && d <= 14;
         })
         .sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
     [events]
@@ -231,10 +233,13 @@ export default function CalendarPage() {
               const days = daysUntil(ev.starts_at);
               const urgent = days <= 3;
               return (
-                <li key={ev.id}>
+                <li
+                  key={ev.id}
+                  className="flex items-start gap-2 rounded-lg border border-hairline bg-surface px-3 py-2 hover:border-baseline"
+                >
                   <Link
                     href={`/?focus=${ev.application_id}`}
-                    className="flex items-start gap-2 rounded-lg border border-hairline bg-surface px-3 py-2 hover:border-baseline"
+                    className="flex min-w-0 flex-1 items-start gap-2"
                   >
                     <span
                       aria-hidden
@@ -252,20 +257,29 @@ export default function CalendarPage() {
                         {ev.label ? ` — ${ev.label}` : ""}
                       </span>
                     </span>
-                    <span
-                      className={`ml-auto whitespace-nowrap text-[11px] ${
-                        urgent
-                          ? "font-semibold text-critical"
-                          : "text-muted"
-                      }`}
-                    >
-                      {days === 0
-                        ? "today"
-                        : days === 1
-                          ? "tomorrow"
-                          : `${days}d`}
-                    </span>
                   </Link>
+                  {ev.url && (
+                    <a
+                      href={ev.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-0.5 whitespace-nowrap text-[11px] text-accent hover:underline"
+                      title="Open link"
+                    >
+                      ↗
+                    </a>
+                  )}
+                  <span
+                    className={`mt-0.5 whitespace-nowrap text-[11px] ${
+                      urgent ? "font-semibold text-critical" : "text-muted"
+                    }`}
+                  >
+                    {days === 0
+                      ? "today"
+                      : days === 1
+                        ? "tomorrow"
+                        : `${days}d`}
+                  </span>
                 </li>
               );
             })}
