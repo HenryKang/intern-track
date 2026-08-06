@@ -43,6 +43,18 @@ export function db(): Database.Database {
       starts_at      TEXT NOT NULL,
       label          TEXT
     );
+    CREATE TABLE IF NOT EXISTS profile (
+      key   TEXT PRIMARY KEY,
+      value TEXT
+    );
+    CREATE TABLE IF NOT EXISTS resumes (
+      id          INTEGER PRIMARY KEY,
+      name        TEXT NOT NULL,
+      filename    TEXT NOT NULL,
+      mime        TEXT,
+      size        INTEGER,
+      uploaded_at TEXT DEFAULT (datetime('now'))
+    );
   `);
   return _db;
 }
@@ -175,4 +187,77 @@ export function listResumes(): string[] {
     )
     .all() as { resume: string }[];
   return rows.map((r) => r.resume);
+}
+
+// --- profile ---------------------------------------------------------------
+
+export function getProfile(): Record<string, string> {
+  const rows = db().prepare("SELECT key, value FROM profile").all() as {
+    key: string;
+    value: string;
+  }[];
+  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+}
+
+export function setProfile(entries: Record<string, string>): void {
+  const stmt = db().prepare(
+    "INSERT INTO profile (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+  );
+  const tx = db().transaction((e: Record<string, string>) => {
+    for (const [k, v] of Object.entries(e)) stmt.run(k, v);
+  });
+  tx(entries);
+}
+
+// --- resume files ----------------------------------------------------------
+
+export interface ResumeFile {
+  id: number;
+  name: string;
+  filename: string;
+  mime: string | null;
+  size: number | null;
+  uploaded_at: string;
+}
+
+export const RESUME_DIR = path.join(DATA_DIR, "resumes");
+
+export function listResumeFiles(): ResumeFile[] {
+  return db()
+    .prepare("SELECT * FROM resumes ORDER BY uploaded_at DESC")
+    .all() as ResumeFile[];
+}
+
+export function getResumeFile(id: number): ResumeFile | null {
+  return (
+    (db().prepare("SELECT * FROM resumes WHERE id = ?").get(id) as
+      | ResumeFile
+      | undefined) ?? null
+  );
+}
+
+export function createResumeFile(input: {
+  name: string;
+  filename: string;
+  mime: string | null;
+  size: number | null;
+}): ResumeFile {
+  const res = db()
+    .prepare(
+      "INSERT INTO resumes (name, filename, mime, size) VALUES (@name, @filename, @mime, @size)"
+    )
+    .run(input);
+  return getResumeFile(Number(res.lastInsertRowid))!;
+}
+
+export function deleteResumeFile(id: number): void {
+  const r = getResumeFile(id);
+  if (r) {
+    try {
+      fs.unlinkSync(path.join(RESUME_DIR, r.filename));
+    } catch {
+      // file already gone — still remove the row
+    }
+    db().prepare("DELETE FROM resumes WHERE id = ?").run(id);
+  }
 }

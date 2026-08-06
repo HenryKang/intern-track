@@ -33,6 +33,28 @@ export default function Nav() {
             </Link>
           );
         })}
+        <Link
+          href="/profile"
+          title="Profile & resumes"
+          className={`ml-auto inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors ${
+            pathname === "/profile"
+              ? "bg-accent/10 font-medium text-accent"
+              : "text-ink-2 hover:bg-hairline hover:text-ink"
+          }`}
+        >
+          <svg
+            aria-hidden
+            viewBox="0 0 16 16"
+            className="size-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <circle cx="8" cy="5" r="2.75" />
+            <path d="M2.75 14a5.25 5.25 0 0 1 10.5 0" />
+          </svg>
+          Profile
+        </Link>
       </nav>
     </header>
   );

@@ -366,8 +366,18 @@ function Tracker() {
   const focusId = searchParams.get("focus");
   const focusedRef = useRef(false);
 
+  const [uploadedResumes, setUploadedResumes] = useState<string[]>([]);
+
   const refresh = useCallback(async () => {
     setApps(await api("/api/applications"));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/resumes")
+      .then((r) => r.json())
+      .then((list: { name: string }[]) =>
+        setUploadedResumes(list.map((r) => r.name))
+      );
   }, []);
 
   useEffect(() => {
@@ -398,9 +408,14 @@ function Tracker() {
   const resumes = useMemo(
     () =>
       Array.from(
-        new Set((apps ?? []).map((a) => a.resume).filter((r): r is string => !!r))
+        new Set([
+          ...uploadedResumes,
+          ...(apps ?? [])
+            .map((a) => a.resume)
+            .filter((r): r is string => !!r),
+        ])
       ),
-    [apps]
+    [apps, uploadedResumes]
   );
 
   const visible = useMemo(() => {

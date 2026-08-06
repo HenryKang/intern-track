@@ -36,6 +36,10 @@ npm run seed -- --wipe   # wipe everything (start fresh for real use)
 - **`/calendar`** — month grid of OA deadlines (orange) and interviews (blue),
   plus a next-14-days list. Clicking an event jumps to that application's row
   on the tracker.
+- **`/profile`** (top-right) — basic profile info (name, school, links, …) and
+  resume management: upload each version (PDF/Word, ≤ 10 MB, stored locally in
+  `data/resumes/`), view/delete them, and see how many applications used each
+  version. Uploaded version names autocomplete in the tracker's Resume column.
 
 ## Data model
 

@@ -143,19 +143,22 @@ export default function FunnelPage() {
       </div>
 
       <div className="rounded-xl border border-hairline bg-surface p-2">
-        <div className="h-[420px]">
+        <div className="h-[480px]">
           <ResponsiveSankey
             data={data!}
-            margin={{ top: 20, right: 110, bottom: 20, left: 80 }}
+            margin={{ top: 20, right: 130, bottom: 20, left: 110 }}
             colors={nodeColor}
-            nodeThickness={14}
-            nodeSpacing={18}
-            nodeBorderRadius={3}
+            nodeThickness={10}
+            nodeSpacing={28}
+            nodeBorderRadius={2}
             nodeOpacity={1}
             nodeHoverOthersOpacity={0.35}
-            linkOpacity={dark ? 0.45 : 0.35}
-            linkHoverOthersOpacity={0.1}
+            linkOpacity={0.55}
+            linkHoverOpacity={0.8}
+            linkHoverOthersOpacity={0.15}
+            linkBlendMode="normal"
             enableLinkGradient
+            label={(node) => `${node.id}: ${node.value}`}
             labelPosition="outside"
             labelPadding={12}
             labelTextColor={dark ? "#c3c2b7" : "#52514e"}

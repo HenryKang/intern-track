@@ -1,0 +1,218 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type { Application } from "@/lib/types";
+
+interface ResumeFile {
+  id: number;
+  name: string;
+  filename: string;
+  mime: string | null;
+  size: number | null;
+  uploaded_at: string;
+}
+
+const FIELDS: { key: string; label: string; placeholder: string; type?: string }[] = [
+  { key: "name", label: "Name", placeholder: "Henry Kang" },
+  { key: "email", label: "Email", placeholder: "you@example.com", type: "email" },
+  { key: "phone", label: "Phone", placeholder: "(555) 555-5555", type: "tel" },
+  { key: "school", label: "School", placeholder: "University of Michigan" },
+  { key: "graduation", label: "Graduation", placeholder: "May 2028" },
+  { key: "github", label: "GitHub", placeholder: "https://github.com/…", type: "url" },
+  { key: "linkedin", label: "LinkedIn", placeholder: "https://linkedin.com/in/…", type: "url" },
+  { key: "website", label: "Website", placeholder: "https://…", type: "url" },
+];
+
+const inputCls =
+  "rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
+
+function formatSize(bytes: number | null): string {
+  if (!bytes) return "";
+  return bytes < 1024 * 1024
+    ? `${Math.round(bytes / 1024)} KB`
+    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+export default function ProfilePage() {
+  const [profile, setProfileState] = useState<Record<string, string> | null>(null);
+  const [resumes, setResumes] = useState<ResumeFile[]>([]);
+  const [apps, setApps] = useState<Application[]>([]);
+  const [saved, setSaved] = useState(false);
+  const [uploadName, setUploadName] = useState("");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("/api/profile").then((r) => r.json()).then(setProfileState);
+    fetch("/api/resumes").then((r) => r.json()).then(setResumes);
+    fetch("/api/applications").then((r) => r.json()).then(setApps);
+  }, []);
+
+  async function saveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function upload(e: React.FormEvent) {
+    e.preventDefault();
+    const file = fileRef.current?.files?.[0];
+    setUploadError(null);
+    if (!file || !uploadName.trim()) {
+      setUploadError("Pick a file and give it a version name.");
+      return;
+    }
+    setUploading(true);
+    const form = new FormData();
+    form.append("file", file);
+    form.append("name", uploadName.trim());
+    const res = await fetch("/api/resumes", { method: "POST", body: form });
+    setUploading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setUploadError(data.error ?? "Upload failed");
+      return;
+    }
+    setUploadName("");
+    if (fileRef.current) fileRef.current.value = "";
+    setResumes(await (await fetch("/api/resumes")).json());
+  }
+
+  async function deleteResume(r: ResumeFile) {
+    if (!confirm(`Delete resume "${r.name}" (${r.filename.replace(/^\d+-/, "")})?`))
+      return;
+    await fetch(`/api/resumes/${r.id}`, { method: "DELETE" });
+    setResumes(await (await fetch("/api/resumes")).json());
+  }
+
+  const usedBy = (name: string) =>
+    apps.filter((a) => a.resume === name).length;
+
+  if (profile === null) {
+    return <p className="py-12 text-center text-sm text-muted">Loading…</p>;
+  }
+
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <section className="rounded-xl border border-hairline bg-surface p-5">
+        <h1 className="mb-4 text-sm font-semibold">Profile</h1>
+        <form onSubmit={saveProfile}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {FIELDS.map((f) => (
+              <label key={f.key} className="flex flex-col gap-1 text-xs text-muted">
+                {f.label}
+                <input
+                  type={f.type ?? "text"}
+                  value={profile[f.key] ?? ""}
+                  placeholder={f.placeholder}
+                  onChange={(e) =>
+                    setProfileState({ ...profile, [f.key]: e.target.value })
+                  }
+                  className={inputCls}
+                />
+              </label>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="submit"
+              className="rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              Save
+            </button>
+            {saved && <span className="text-xs text-good-text">✓ Saved</span>}
+          </div>
+        </form>
+      </section>
+
+      <section className="rounded-xl border border-hairline bg-surface p-5">
+        <h2 className="mb-1 text-sm font-semibold">Resumes</h2>
+        <p className="mb-4 text-xs text-muted">
+          Upload each version you use (PDF or Word, ≤ 10 MB). Use the version
+          name in the tracker&apos;s “Resume” column to record which one went to
+          which company.
+        </p>
+
+        <form onSubmit={upload} className="mb-4 flex flex-wrap items-end gap-2">
+          <label className="flex basis-36 flex-col gap-1 text-xs text-muted">
+            Version name
+            <input
+              value={uploadName}
+              onChange={(e) => setUploadName(e.target.value)}
+              placeholder="e.g. swe-v3"
+              className={inputCls}
+            />
+          </label>
+          <label className="flex flex-1 basis-52 flex-col gap-1 text-xs text-muted">
+            File
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              className={`${inputCls} file:mr-3 file:rounded file:border-0 file:bg-hairline file:px-2 file:py-0.5 file:text-xs file:text-ink-2`}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={uploading}
+            className="rounded-md border border-hairline px-3 py-1.5 text-sm text-ink-2 hover:border-baseline disabled:opacity-50"
+          >
+            {uploading ? "Uploading…" : "Upload"}
+          </button>
+        </form>
+        {uploadError && (
+          <p className="mb-3 text-xs text-critical">{uploadError}</p>
+        )}
+
+        {resumes.length === 0 ? (
+          <p className="text-xs text-muted">No resumes uploaded yet.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-[var(--hairline)]">
+            {resumes.map((r) => {
+              const count = usedBy(r.name);
+              return (
+                <li key={r.id} className="flex items-center gap-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-ink">
+                      {r.name}
+                    </span>
+                    <span className="block truncate text-xs text-muted">
+                      {r.filename.replace(/^\d+-/, "")} ·{" "}
+                      {formatSize(r.size)} · uploaded{" "}
+                      {new Date(r.uploaded_at + "Z").toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                      {count > 0 &&
+                        ` · used by ${count} application${count === 1 ? "" : "s"}`}
+                    </span>
+                  </div>
+                  <a
+                    href={`/api/resumes/${r.id}/file`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-hairline px-2.5 py-1 text-xs text-ink-2 hover:border-baseline"
+                  >
+                    View
+                  </a>
+                  <button
+                    onClick={() => deleteResume(r)}
+                    className="rounded-md border border-hairline px-2.5 py-1 text-xs text-muted hover:border-critical hover:text-critical"
+                  >
+                    Delete
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
