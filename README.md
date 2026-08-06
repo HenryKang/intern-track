@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# intern-track
 
-## Getting Started
+Personal internship application tracker — the pipeline half of the system
+([intern-radar](../intern-radar) handles discovery). Tracks which applications
+you've submitted, OA deadlines, interview dates, resume versions, and shows an
+aggregate Sankey funnel of where everything stands.
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Data lives in a single SQLite file at `data/tracker.db` (gitignored — back it
+up by copying the file).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run seed             # wipe + load ~11 fake applications for development
+npm run seed -- --wipe   # wipe everything (start fresh for real use)
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Pages
 
-## Learn More
+- **`/` Tracker** — spreadsheet-style table: company, position (links to the
+  posting), date applied, stage, status, next deadline, resume used. Inline
+  editing on stage/status/resume; the ▸ chevron expands notes, the posting URL,
+  and OA-deadline/interview events. Paste a **Greenhouse / Lever / Ashby** job
+  URL into the quick-add box and Autofill fills company + title from the ATS's
+  public API (US + EU Greenhouse both supported). Unknown ATSs (e.g. Workday)
+  fall back to manual entry.
+- **`/funnel`** — Sankey of the aggregate pipeline: Applied → OA → First Round
+  → Tech Call → Final Round → Offer, with Rejected / In progress / Accepted
+  terminals. Derived live from stage + status; the table below is the same data
+  in text form.
+- **`/calendar`** — month grid of OA deadlines (orange) and interviews (blue),
+  plus a next-14-days list. Clicking an event jumps to that application's row
+  on the tracker.
 
-To learn more about Next.js, take a look at the following resources:
+## Data model
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Two tables in `lib/db.ts`: `applications` (company, title, url, date_applied,
+`status` = ongoing|rejected|accepted, `stage` = applied|oa|first_round|
+tech_call|final_round|offer, resume, notes) and `events`
+(oa_deadline|interview, datetime, label) — multiple events per application.
+`stage` is the furthest point reached; the Sankey infers the full path from it,
+so there's no separate history table.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Future ideas
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Gmail parsing for OA/interview emails (interactive Claude Code session)
+- Google Calendar sync for events
+- One-click import from intern-radar's `data/postings.json`
+- Deploy (Vercel + Turso) for phone access

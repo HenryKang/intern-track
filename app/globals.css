@@ -1,26 +1,90 @@
 @import "tailwindcss";
 
+/* Palette per the dataviz reference instance: ink/chrome tokens, ordinal blue
+   ramp for interview stages, reserved status colors, categorical slots 1–2 for
+   the two calendar event types. Dark values are selected steps, not a flip. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --hairline: rgba(11, 11, 11, 0.1);
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ordinal stage ramp: equal-L OKLab steps 250→700, validated 2026-08 */
+  --stage-1: #86b6ef;
+  --stage-2: #6d9bd3;
+  --stage-3: #5480b8;
+  --stage-4: #3c679e;
+  --stage-5: #254e84;
+  --stage-6: #0d366b;
+
+  /* status (reserved) */
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warning: #fab219;
+  --critical: #d03b3b;
+
+  /* categorical slots for event types */
+  --cat-1: #2a78d6; /* interview */
+  --cat-2: #eb6834; /* OA deadline */
+
+  --accent: #2a78d6;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --hairline: rgba(255, 255, 255, 0.1);
+
+    /* dark ordinal ramp: steps 600→100, later stage = more prominent */
+    --stage-1: #184f95;
+    --stage-2: #256abf;
+    --stage-3: #3987e5;
+    --stage-4: #6da7ec;
+    --stage-5: #9ec5f4;
+    --stage-6: #cde2fb;
+
+    --good-text: #0ca30c;
+
+    --cat-1: #3987e5;
+    --cat-2: #d95926;
+
+    --accent: #3987e5;
   }
 }
 
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-grid: var(--grid);
+  --color-baseline: var(--baseline);
+  --color-hairline: var(--hairline);
+  --color-good: var(--good);
+  --color-good-text: var(--good-text);
+  --color-warning: var(--warning);
+  --color-critical: var(--critical);
+  --color-cat-1: var(--cat-1);
+  --color-cat-2: var(--cat-2);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI",
+    sans-serif;
 }
