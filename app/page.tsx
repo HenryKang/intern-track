@@ -352,6 +352,9 @@ function DetailPanel({
   const [evLabel, setEvLabel] = useState("");
   const [evUrl, setEvUrl] = useState("");
   const [editUrl, setEditUrl] = useState(app.url ?? "");
+  const [editCompany, setEditCompany] = useState(app.company);
+  const [editTitle, setEditTitle] = useState(app.title);
+  const [editDate, setEditDate] = useState(app.date_applied ?? "");
 
   async function addEvent(e: React.FormEvent) {
     e.preventDefault();
@@ -398,6 +401,47 @@ function DetailPanel({
   return (
     <div className="grid gap-4 border-t border-hairline bg-page/50 px-4 py-4 text-sm md:grid-cols-2">
       <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Company
+            <input
+              value={editCompany}
+              onChange={(e) => setEditCompany(e.target.value)}
+              onBlur={() => {
+                const v = editCompany.trim();
+                if (!v) setEditCompany(app.company);
+                else if (v !== app.company) onPatch({ company: v });
+              }}
+              className={inputCls}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Position
+            <input
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onBlur={() => {
+                const v = editTitle.trim();
+                if (!v) setEditTitle(app.title);
+                else if (v !== app.title) onPatch({ title: v });
+              }}
+              className={inputCls}
+            />
+          </label>
+        </div>
+        <label className="flex flex-col gap-1 text-xs text-muted">
+          Date applied
+          <input
+            type="date"
+            value={editDate}
+            onChange={(e) => setEditDate(e.target.value)}
+            onBlur={() => {
+              if (editDate !== (app.date_applied ?? ""))
+                onPatch({ date_applied: editDate || null });
+            }}
+            className={inputCls}
+          />
+        </label>
         <label className="flex flex-col gap-1 text-xs text-muted">
           Notes
           <textarea
