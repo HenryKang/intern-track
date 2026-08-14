@@ -355,6 +355,42 @@ function DetailPanel({
   const [editCompany, setEditCompany] = useState(app.company);
   const [editTitle, setEditTitle] = useState(app.title);
   const [editDate, setEditDate] = useState(app.date_applied ?? "");
+  const [editSeason, setEditSeason] = useState(app.season ?? "");
+  const [saved, setSaved] = useState(false);
+
+  // Drafts apply only on Confirm — nothing saves while typing.
+  const draft = {
+    company: editCompany.trim() || app.company,
+    title: editTitle.trim() || app.title,
+    date_applied: editDate || null,
+    notes: notes || null,
+    url: editUrl.trim() || null,
+    season: editSeason || null,
+  };
+  const dirty =
+    draft.company !== app.company ||
+    draft.title !== app.title ||
+    draft.date_applied !== (app.date_applied ?? null) ||
+    draft.notes !== (app.notes ?? null) ||
+    draft.url !== (app.url ?? null) ||
+    draft.season !== (app.season ?? null);
+
+  function confirmEdits() {
+    onPatch(draft);
+    setEditCompany(draft.company);
+    setEditTitle(draft.title);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  function cancelEdits() {
+    setEditCompany(app.company);
+    setEditTitle(app.title);
+    setEditDate(app.date_applied ?? "");
+    setNotes(app.notes ?? "");
+    setEditUrl(app.url ?? "");
+    setEditSeason(app.season ?? "");
+  }
 
   async function addEvent(e: React.FormEvent) {
     e.preventDefault();
@@ -407,11 +443,6 @@ function DetailPanel({
             <input
               value={editCompany}
               onChange={(e) => setEditCompany(e.target.value)}
-              onBlur={() => {
-                const v = editCompany.trim();
-                if (!v) setEditCompany(app.company);
-                else if (v !== app.company) onPatch({ company: v });
-              }}
               className={inputCls}
             />
           </label>
@@ -420,36 +451,30 @@ function DetailPanel({
             <input
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              onBlur={() => {
-                const v = editTitle.trim();
-                if (!v) setEditTitle(app.title);
-                else if (v !== app.title) onPatch({ title: v });
-              }}
               className={inputCls}
             />
           </label>
         </div>
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Date applied
-          <input
-            type="date"
-            value={editDate}
-            onChange={(e) => setEditDate(e.target.value)}
-            onBlur={() => {
-              if (editDate !== (app.date_applied ?? ""))
-                onPatch({ date_applied: editDate || null });
-            }}
-            className={inputCls}
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Date applied
+            <input
+              type="date"
+              value={editDate}
+              onChange={(e) => setEditDate(e.target.value)}
+              className={inputCls}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Season
+            <SeasonSelect value={editSeason} onChange={setEditSeason} />
+          </label>
+        </div>
         <label className="flex flex-col gap-1 text-xs text-muted">
           Notes
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            onBlur={() => {
-              if (notes !== (app.notes ?? "")) onPatch({ notes });
-            }}
             rows={3}
             placeholder="Recruiter names, referral, prep notes…"
             className={`${inputCls} resize-y`}
@@ -460,25 +485,32 @@ function DetailPanel({
           <input
             value={editUrl}
             onChange={(e) => setEditUrl(e.target.value)}
-            onBlur={() => {
-              if (editUrl !== (app.url ?? "")) onPatch({ url: editUrl || null });
-            }}
             className={inputCls}
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Season
-          <SeasonSelect
-            value={app.season ?? ""}
-            onChange={(v) => onPatch({ season: v || null })}
-          />
-        </label>
-        <button
-          onClick={deleteApp}
-          className="self-start text-xs text-muted hover:text-critical"
-        >
-          Delete application
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={confirmEdits}
+            disabled={!dirty}
+            className="rounded-md bg-accent px-4 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-40"
+          >
+            Confirm
+          </button>
+          <button
+            onClick={cancelEdits}
+            disabled={!dirty}
+            className="rounded-md border border-hairline px-3 py-1.5 text-xs text-ink-2 hover:border-baseline disabled:opacity-40"
+          >
+            Cancel
+          </button>
+          {saved && <span className="text-xs text-good-text">✓ Saved</span>}
+          <button
+            onClick={deleteApp}
+            className="ml-auto text-xs text-muted hover:text-critical"
+          >
+            Delete application
+          </button>
+        </div>
       </div>
       <div className="flex flex-col gap-2">
         <span className="text-xs text-muted">OA deadlines & interviews</span>
