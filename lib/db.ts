@@ -81,6 +81,10 @@ export function db(): Database.Database {
   _db.exec(
     "UPDATE applications SET stage = 'first_round' WHERE stage = 'tech_call'"
   );
+  if (!appCols.some((c) => c.name === "updated_at")) {
+    _db.exec("ALTER TABLE applications ADD COLUMN updated_at TEXT");
+    _db.exec("UPDATE applications SET updated_at = created_at");
+  }
   return _db;
 }
 
@@ -125,8 +129,8 @@ export function createApplication(input: {
 }): ApplicationWithEvents {
   const res = db()
     .prepare(
-      `INSERT INTO applications (company, title, url, date_applied, status, stage, season, resume, notes)
-       VALUES (@company, @title, @url, @date_applied, @status, @stage, @season, @resume, @notes)`
+      `INSERT INTO applications (company, title, url, date_applied, status, stage, season, resume, notes, updated_at)
+       VALUES (@company, @title, @url, @date_applied, @status, @stage, @season, @resume, @notes, datetime('now'))`
     )
     .run({
       company: input.company,
@@ -163,10 +167,16 @@ export function updateApplication(
 ): Application | null {
   const keys = Object.keys(patch).filter((k) => APP_COLUMNS.has(k));
   if (keys.length > 0) {
-    // A user-set status opts the row out of the auto-ghost sweep.
+    // A user-set status opts the row out of the auto-ghost sweep; stage or
+    // status changes stamp updated_at so "recently updated" sorting works.
     const sets = keys
       .map((k) => `${k} = @${k}`)
       .concat(keys.includes("status") ? ["status_manual = 1"] : [])
+      .concat(
+        keys.includes("stage") || keys.includes("status")
+          ? ["updated_at = datetime('now')"]
+          : []
+      )
       .join(", ");
     db()
       .prepare(`UPDATE applications SET ${sets} WHERE id = @id`)

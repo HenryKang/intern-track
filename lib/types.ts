@@ -67,6 +67,7 @@ export interface Application {
   resume: string | null;
   notes: string | null;
   created_at: string;
+  updated_at: string | null; // stamped on stage/status changes
 }
 
 // Winter YYYY means Jan–Mar of that year, so it comes FIRST within a year:

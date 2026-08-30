@@ -38,6 +38,8 @@ async function api(path: string, init?: RequestInit) {
 const inputCls =
   "rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
 
+type SortMode = "deadline" | "applied" | "updated";
+
 // "Fall 2026", "Summer 2027", … for the current year through +2.
 const SEASON_OPTIONS = (() => {
   const y = new Date().getFullYear();
@@ -588,7 +590,19 @@ function Tracker() {
   const [apps, setApps] = useState<ApplicationWithEvents[] | null>(null);
   const [activeOnly, setActiveOnly] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("deadline");
   const { season, setSeason, apply } = useSeasonFilter();
+
+  useEffect(() => {
+    const stored = localStorage.getItem("sortMode");
+    if (stored === "deadline" || stored === "applied" || stored === "updated")
+      setSortMode(stored);
+  }, []);
+
+  function changeSort(v: SortMode) {
+    setSortMode(v);
+    localStorage.setItem("sortMode", v);
+  }
   const searchParams = useSearchParams();
   const focusId = searchParams.get("focus");
   const focusedRef = useRef(false);
@@ -636,14 +650,22 @@ function Tracker() {
   const visible = useMemo(() => {
     let list = apply(apps ?? []);
     if (activeOnly) list = list.filter((a) => a.status === "ongoing");
+    const byApplied = (a: ApplicationWithEvents, b: ApplicationWithEvents) =>
+      (b.date_applied ?? "").localeCompare(a.date_applied ?? "");
     return [...list].sort((a, b) => {
+      if (sortMode === "applied") return byApplied(a, b);
+      if (sortMode === "updated") {
+        return (b.updated_at ?? b.created_at).localeCompare(
+          a.updated_at ?? a.created_at
+        );
+      }
       const [ga, ea] = sortKey(a);
       const [gb, eb] = sortKey(b);
       if (ga !== gb) return ga - gb;
       if (ga === 0) return ea.localeCompare(eb);
-      return (b.date_applied ?? "").localeCompare(a.date_applied ?? "");
+      return byApplied(a, b);
     });
-  }, [apps, activeOnly, apply]);
+  }, [apps, activeOnly, apply, sortMode]);
 
   // Group into season sections, chronological (Fall 2026 before Summer 2027),
   // apps without a season last.
@@ -676,15 +698,29 @@ function Tracker() {
           <span className="font-normal text-muted">({visible.length})</span>
         </h1>
         <SeasonTabs apps={apps} value={season} onChange={setSeason} />
-        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-ink-2">
-          <input
-            type="checkbox"
-            checked={activeOnly}
-            onChange={(e) => setActiveOnly(e.target.checked)}
-            className="accent-[var(--accent)]"
-          />
-          Active only
-        </label>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-ink-2">
+            Sort
+            <select
+              value={sortMode}
+              onChange={(e) => changeSort(e.target.value as SortMode)}
+              className="rounded-md border border-hairline bg-surface px-1.5 py-1 text-xs text-ink outline-none focus:border-accent"
+            >
+              <option value="deadline">Next deadline</option>
+              <option value="applied">Date applied</option>
+              <option value="updated">Recently updated</option>
+            </select>
+          </label>
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-ink-2">
+            <input
+              type="checkbox"
+              checked={activeOnly}
+              onChange={(e) => setActiveOnly(e.target.checked)}
+              className="accent-[var(--accent)]"
+            />
+            Active only
+          </label>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-hairline bg-surface">
