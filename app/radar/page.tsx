@@ -14,6 +14,8 @@ interface RadarRow {
   alive: boolean;
   date_found: number;
   applied_id: number | null;
+  match_kind: "url" | "title" | "manual" | null;
+  matched_title: string | null;
 }
 interface CompanyRow {
   norm: string;
@@ -44,15 +46,24 @@ const CATEGORY_BADGE: Record<string, string> = {
 const inputCls =
   "rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
 
+const MATCH_NOTE: Record<string, string> = {
+  url: "Matched to a tracker application by posting link",
+  title: "Matched to a tracker application by company + title",
+  manual: "Marked applied from Radar",
+};
+
 function PostingCard({
   p,
   adding,
   onApplied,
+  onUnmark,
 }: {
   p: RadarRow;
   adding: boolean;
   onApplied: () => void;
+  onUnmark: (deleteApplication: boolean) => void;
 }) {
+  const [undoing, setUndoing] = useState(false);
   return (
     <div
       className={`flex flex-col gap-2 rounded-xl border border-hairline bg-surface p-4 ${
@@ -103,7 +114,7 @@ function PostingCard({
         )}
         {!p.alive && <span className="text-muted">closed</span>}
       </div>
-      <div className="mt-auto flex items-center justify-between pt-1">
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
         <span className="text-[11px] text-muted">
           {p.date_found
             ? "Found · " +
@@ -113,8 +124,45 @@ function PostingCard({
               })
             : ""}
         </span>
-        {p.applied_id ? (
-          <span className="text-xs font-medium text-good-text">✓ Applied</span>
+        {undoing ? (
+          <span className="flex items-center gap-1.5 text-[11px]">
+            <button
+              onClick={() => {
+                setUndoing(false);
+                onUnmark(false);
+              }}
+              title="Keep the tracker row, just clear the ✓ here"
+              className="rounded-md border border-hairline px-2 py-1 text-ink-2 hover:border-baseline"
+            >
+              Unmark only
+            </button>
+            <button
+              onClick={() => {
+                setUndoing(false);
+                onUnmark(true);
+              }}
+              title={`Delete “${p.matched_title ?? p.title}” from the tracker`}
+              className="rounded-md border border-hairline px-2 py-1 text-critical hover:border-critical"
+            >
+              Delete row
+            </button>
+            <button
+              onClick={() => setUndoing(false)}
+              className="px-1 text-muted hover:text-ink"
+            >
+              Cancel
+            </button>
+          </span>
+        ) : p.applied_id ? (
+          <button
+            onClick={() => setUndoing(true)}
+            title={`${MATCH_NOTE[p.match_kind ?? "manual"]}${
+              p.matched_title ? `: “${p.matched_title}”` : ""
+            } — click to undo`}
+            className="rounded-md px-2 py-1 text-xs font-medium text-good-text hover:bg-hairline"
+          >
+            ✓ Applied
+          </button>
         ) : (
           <button
             onClick={onApplied}
@@ -383,10 +431,11 @@ export default function RadarPage() {
 
   async function markApplied(p: RadarRow) {
     setAdding(p.id);
-    await fetch("/api/applications", {
+    await fetch("/api/radar/applied", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        posting_id: p.id,
         company: p.company,
         title: p.title,
         url: p.url,
@@ -395,6 +444,19 @@ export default function RadarPage() {
       }),
     });
     setAdding(null);
+    refresh();
+  }
+
+  async function unmarkApplied(p: RadarRow, deleteApplication: boolean) {
+    await fetch("/api/radar/applied", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        posting_id: p.id,
+        application_id: p.applied_id,
+        delete_application: deleteApplication,
+      }),
+    });
     refresh();
   }
 
@@ -481,6 +543,7 @@ export default function RadarPage() {
             p={p}
             adding={adding === p.id}
             onApplied={() => markApplied(p)}
+            onUnmark={(del) => unmarkApplied(p, del)}
           />
         ))}
       </div>

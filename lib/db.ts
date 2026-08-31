@@ -90,6 +90,12 @@ export function db(): Database.Database {
       norm     TEXT PRIMARY KEY,
       category TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS radar_links (
+      posting_id     TEXT PRIMARY KEY,
+      state          TEXT NOT NULL,
+      application_id INTEGER,
+      created_at     TEXT DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS candidates (
       id             INTEGER PRIMARY KEY,
       kind           TEXT NOT NULL DEFAULT 'application',
@@ -456,4 +462,42 @@ export function setCategoryOverride(norm: string, category: string | null): void
       )
       .run(norm, category);
   }
+}
+
+// --- radar links: explicit applied / not-applied overrides per posting ------
+// Auto-matching handles the common case; these rows record the user's own
+// decisions so they survive re-matching (and so "unmark" sticks).
+
+export interface RadarLink {
+  posting_id: string;
+  state: "applied" | "not_applied";
+  application_id: number | null;
+}
+
+export function listRadarLinks(): Record<string, RadarLink> {
+  const rows = db().prepare("SELECT * FROM radar_links").all() as RadarLink[];
+  return Object.fromEntries(rows.map((r) => [r.posting_id, r]));
+}
+
+export function setRadarLink(
+  postingId: string,
+  state: "applied" | "not_applied",
+  applicationId: number | null
+): void {
+  db()
+    .prepare(
+      `INSERT INTO radar_links (posting_id, state, application_id)
+       VALUES (@posting_id, @state, @application_id)
+       ON CONFLICT(posting_id) DO UPDATE SET
+         state = excluded.state, application_id = excluded.application_id`
+    )
+    .run({ posting_id: postingId, state, application_id: applicationId });
+}
+
+export function getRadarLink(postingId: string): RadarLink | null {
+  return (
+    (db()
+      .prepare("SELECT * FROM radar_links WHERE posting_id = ?")
+      .get(postingId) as RadarLink | undefined) ?? null
+  );
 }
