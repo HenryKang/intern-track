@@ -85,6 +85,26 @@ export function db(): Database.Database {
     _db.exec("ALTER TABLE applications ADD COLUMN updated_at TEXT");
     _db.exec("UPDATE applications SET updated_at = created_at");
   }
+  _db.exec(`
+    CREATE TABLE IF NOT EXISTS company_category (
+      norm     TEXT PRIMARY KEY,
+      category TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS candidates (
+      id             INTEGER PRIMARY KEY,
+      kind           TEXT NOT NULL DEFAULT 'application',
+      company        TEXT NOT NULL,
+      title          TEXT,
+      url            TEXT,
+      applied_date   TEXT,
+      source         TEXT NOT NULL DEFAULT 'gmail',
+      evidence       TEXT,
+      message_id     TEXT UNIQUE,
+      state          TEXT NOT NULL DEFAULT 'pending',
+      application_id INTEGER,
+      created_at     TEXT DEFAULT (datetime('now'))
+    );
+  `);
   return _db;
 }
 
@@ -314,5 +334,126 @@ export function deleteResumeFile(id: number): void {
       // file already gone — still remove the row
     }
     db().prepare("DELETE FROM resumes WHERE id = ?").run(id);
+  }
+}
+
+// --- candidates (review queue fed by gmail sync / other capture sources) ---
+
+export type CandidateKind = "application" | "oa" | "rejection" | "interview";
+
+export interface Candidate {
+  id: number;
+  kind: CandidateKind;
+  company: string;
+  title: string | null;
+  url: string | null;
+  applied_date: string | null;
+  source: string;
+  evidence: string | null;
+  message_id: string | null;
+  state: "pending" | "confirmed" | "dismissed";
+  application_id: number | null;
+  created_at: string;
+}
+
+export function normalizeCompany(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\b(inc|llc|ltd|corp|corporation|co|technologies|technology|labs|group)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function listPendingCandidates(): Candidate[] {
+  return db()
+    .prepare("SELECT * FROM candidates WHERE state = 'pending' ORDER BY id DESC")
+    .all() as Candidate[];
+}
+
+export function createCandidate(input: {
+  kind?: CandidateKind;
+  company: string;
+  title?: string | null;
+  url?: string | null;
+  applied_date?: string | null;
+  source?: string;
+  evidence?: string | null;
+  message_id?: string | null;
+}): { candidate?: Candidate; duplicate?: boolean; skipped?: string } {
+  if (input.message_id) {
+    const existing = db()
+      .prepare("SELECT id FROM candidates WHERE message_id = ?")
+      .get(input.message_id);
+    if (existing) return { duplicate: true };
+  }
+  const kind = input.kind ?? "application";
+  if (kind === "application") {
+    // Skip when a matching application already exists near the email date.
+    const norm = normalizeCompany(input.company);
+    const apps = db()
+      .prepare("SELECT id, company, date_applied FROM applications")
+      .all() as { id: number; company: string; date_applied: string | null }[];
+    const emailDate = input.applied_date ?? null;
+    for (const a of apps) {
+      if (normalizeCompany(a.company) !== norm) continue;
+      if (!emailDate || !a.date_applied) return { skipped: "existing-application" };
+      const diff = Math.abs(
+        (Date.parse(emailDate) - Date.parse(a.date_applied)) / 86_400_000
+      );
+      if (diff <= 10) return { skipped: "existing-application" };
+    }
+  }
+  const res = db()
+    .prepare(
+      `INSERT INTO candidates (kind, company, title, url, applied_date, source, evidence, message_id)
+       VALUES (@kind, @company, @title, @url, @applied_date, @source, @evidence, @message_id)`
+    )
+    .run({
+      kind,
+      company: input.company,
+      title: input.title ?? null,
+      url: input.url ?? null,
+      applied_date: input.applied_date ?? null,
+      source: input.source ?? "gmail",
+      evidence: input.evidence ?? null,
+      message_id: input.message_id ?? null,
+    });
+  const candidate = db()
+    .prepare("SELECT * FROM candidates WHERE id = ?")
+    .get(res.lastInsertRowid) as Candidate;
+  return { candidate };
+}
+
+export function setCandidateState(
+  id: number,
+  state: "confirmed" | "dismissed",
+  applicationId?: number
+): void {
+  db()
+    .prepare(
+      "UPDATE candidates SET state = @state, application_id = @application_id WHERE id = @id"
+    )
+    .run({ id, state, application_id: applicationId ?? null });
+}
+
+// --- company categories (faang / quant / other overrides for the Radar tab) --
+
+export function listCategoryOverrides(): Record<string, string> {
+  const rows = db()
+    .prepare("SELECT norm, category FROM company_category")
+    .all() as { norm: string; category: string }[];
+  return Object.fromEntries(rows.map((r) => [r.norm, r.category]));
+}
+
+export function setCategoryOverride(norm: string, category: string | null): void {
+  if (category === null) {
+    db().prepare("DELETE FROM company_category WHERE norm = ?").run(norm);
+  } else {
+    db()
+      .prepare(
+        "INSERT INTO company_category (norm, category) VALUES (?, ?) ON CONFLICT(norm) DO UPDATE SET category = excluded.category"
+      )
+      .run(norm, category);
   }
 }

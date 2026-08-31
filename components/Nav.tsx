@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", label: "Tracker" },
   { href: "/funnel", label: "Funnel" },
   { href: "/calendar", label: "Calendar" },
+  { href: "/radar", label: "Radar" },
 ];
 
 export default function Nav() {

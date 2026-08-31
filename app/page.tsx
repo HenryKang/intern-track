@@ -26,6 +26,7 @@ import {
 } from "@/lib/types";
 import { StageSelect, StatusSelect } from "@/components/chips";
 import { SeasonTabs, useSeasonFilter } from "@/components/SeasonFilter";
+import ReviewQueue from "@/components/ReviewQueue";
 
 async function api(path: string, init?: RequestInit) {
   const res = await fetch(path, {
@@ -691,6 +692,8 @@ function Tracker() {
   return (
     <>
       <QuickAdd onAdded={refresh} resumeOptions={uploadedResumes} />
+
+      <ReviewQueue apps={apps} onChanged={refresh} />
 
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-sm font-semibold text-ink">

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "mail-sync": "python3 scripts/gmail_sync.py"
   },
   "dependencies": {
     "@nivo/sankey": "^0.99.0",

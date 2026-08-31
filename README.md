@@ -45,6 +45,24 @@ npm run seed -- --wipe   # wipe everything (start fresh for real use)
   `data/resumes/`), view/delete them, and see how many applications used each
   version. Uploaded version names autocomplete in the tracker's Resume column.
 
+- **`/radar`** — intern-radar's postings archive as a card grid: filter by
+  category (FAANG+ / Quant / Other — edit the mapping and radar's ATS targets
+  via the Companies panel), search, and one-click "I applied" that adds a
+  prefilled tracker row. Refresh triggers radar's GitHub crawl on demand
+  (`gh` CLI) and pulls the results when they land.
+
+## Gmail sync (local, privacy-first)
+
+`npm run mail-sync` runs `scripts/gmail_sync.py`: it reads your inbox **on
+this machine** with a read-only Gmail scope, rule-parses application
+confirmations, OA invites, rejections, and interview emails (no AI, no cloud),
+and posts only the extracted fields into the tracker's **Inbox review** queue.
+Ambiguous emails (no position named) become candidates with title suggestions
+matched from radar's postings; you confirm or dismiss each. One-time setup
+(GCP OAuth desktop client) is documented in the script header; deps:
+`pip install -r scripts/gmail_requirements.txt`. Add a cron/launchd entry to
+run it hourly if you want it hands-off.
+
 ## Data model
 
 Two tables in `lib/db.ts`: `applications` (company, title, url, date_applied,
