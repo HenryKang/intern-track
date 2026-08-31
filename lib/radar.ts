@@ -30,6 +30,15 @@ const RADAR_FILE = path.join(
 
 let cache: { mtimeMs: number; postings: RadarPosting[] } | null = null;
 
+/** Epoch seconds the local postings archive last changed (i.e. last git pull). */
+export function radarDataMtime(): number | null {
+  try {
+    return Math.floor(fs.statSync(RADAR_FILE).mtimeMs / 1000);
+  } catch {
+    return null;
+  }
+}
+
 export function loadRadarPostings(): RadarPosting[] {
   try {
     const stat = fs.statSync(RADAR_FILE);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { listApplications, listRadarLinks, normalizeCompany } from "@/lib/db";
-import { guessSeason, loadRadarPostings } from "@/lib/radar";
+import { guessSeason, loadRadarPostings, radarDataMtime } from "@/lib/radar";
 import { categoryResolver } from "@/lib/categories";
 import { matchPosting } from "@/lib/match";
 
@@ -59,5 +59,9 @@ export function GET() {
     };
   });
   rows.sort((a, b) => b.date_found - a.date_found);
-  return NextResponse.json({ available: rows.length > 0, postings: rows });
+  return NextResponse.json({
+    available: rows.length > 0,
+    last_updated: radarDataMtime(),
+    postings: rows,
+  });
 }

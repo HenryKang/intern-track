@@ -43,6 +43,17 @@ const CATEGORY_BADGE: Record<string, string> = {
   quant: "Quant",
 };
 
+function dataAgeHours(epochSeconds: number): number {
+  return (Date.now() / 1000 - epochSeconds) / 3600;
+}
+
+function formatAge(epochSeconds: number): string {
+  const h = dataAgeHours(epochSeconds);
+  if (h < 1) return `${Math.max(1, Math.round(h * 60))}m ago`;
+  if (h < 48) return `${Math.round(h)}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
 const inputCls =
   "rounded-md border border-hairline bg-surface px-2.5 py-1.5 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
 
@@ -361,7 +372,11 @@ function CompaniesPanel({ onCategoryChanged }: { onCategoryChanged: () => void }
 }
 
 export default function RadarPage() {
-  const [data, setData] = useState<{ available: boolean; postings: RadarRow[] } | null>(null);
+  const [data, setData] = useState<{
+    available: boolean;
+    last_updated: number | null;
+    postings: RadarRow[];
+  } | null>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("all");
   const [liveOnly, setLiveOnly] = useState(true);
@@ -374,7 +389,22 @@ export default function RadarPage() {
     setData(await (await fetch("/api/radar")).json());
   }
   useEffect(() => {
-    refresh();
+    // Pull radar's latest committed results on load — the local clone is the
+    // source for this tab and silently drifted 77 commits behind once.
+    (async () => {
+      await refresh();
+      try {
+        const r = await fetch("/api/radar/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "pull" }),
+        });
+        const d = await r.json();
+        if (d.updated) refresh();
+      } catch {
+        // offline or no git remote — the archive on disk still renders
+      }
+    })();
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
@@ -535,6 +565,14 @@ export default function RadarPage() {
       <p className="mb-3 text-xs text-muted">
         {rows.length} posting{rows.length === 1 ? "" : "s"} · newest first ·
         “I applied” adds a prefilled row to the tracker
+        {data.last_updated && (
+          <>
+            {" · "}
+            <span className={dataAgeHours(data.last_updated) > 12 ? "text-critical" : ""}>
+              archive updated {formatAge(data.last_updated)}
+            </span>
+          </>
+        )}
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map((p) => (
